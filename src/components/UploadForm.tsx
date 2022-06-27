@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import ProgressBar from "@src/components/ProgressBar";
+import useStorage from "@src/hooks/useStorage";
 
 const schema = z.object({
   imageFileList: z.instanceof(
@@ -13,6 +15,18 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 const UploadForm = () => {
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileUploadProgress, setFileUploadProgress] = useState<number>(0);
+  const { url, progress, error } = useStorage(file);
+
+  useEffect(() => {
+    setFileUrl(url);
+  }, [url]);
+  useEffect(() => {
+    setFileUploadProgress(progress);
+  }, [progress]);
+
   const {
     register,
     handleSubmit,
@@ -28,12 +42,27 @@ const UploadForm = () => {
     console.log("before");
     console.log(schema.parse(data));
     console.log("after");
+    if (data.imageFileList.length <= 0) {
+      setError(
+        "imageFileList",
+        { type: "focus", message: "No file found. Please pick a jpeg or png." },
+        { shouldFocus: true }
+      );
+    }
+    if (error) {
+      setError(
+        "imageFileList",
+        { type: "focus", message: error },
+        { shouldFocus: true }
+      );
+    }
     if (data.imageFileList.length === 1) {
       // check the file type
-      if (!possibleFileTypes.includes(data.imageFileList[0].type)) {
+      if (possibleFileTypes.includes(data.imageFileList[0].type)) {
         // upload a single image to firebase
         // data.imageFileList[0]
         console.log(data.imageFileList[0].name);
+        setFile(data.imageFileList[0]);
       } else {
         setError(
           "imageFileList",
@@ -77,6 +106,13 @@ const UploadForm = () => {
       <button type="submit" className="btn btn--blue">
         Upload
       </button>
+      <div className="output">
+        {file && !error && <div>{file.name}</div>}
+        {file && !error && (
+          <ProgressBar url={fileUrl} progress={fileUploadProgress} />
+        )}
+        {file && error && <span className="error-message">{error}</span>}
+      </div>
     </form>
   );
 };
